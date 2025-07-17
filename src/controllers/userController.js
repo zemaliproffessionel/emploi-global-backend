@@ -1,33 +1,31 @@
-// On importe la librairie pour hacher les mots de passe
 const bcrypt = require('bcryptjs');
+// On importe notre nouveau Modèle User
+const User = require('../models/User');
 
-// Cette fonction sera la logique pour l'inscription
 const registerUser = async (req, res) => {
   try {
-    // 1. On récupère l'email et le mot de passe
     const { email, password } = req.body;
 
-    // 2. On vérifie si les données sont complètes
     if (!email || !password) {
       return res.status(400).json({ message: 'Veuillez fournir un email et un mot de passe' });
     }
 
-    // 3. Hachage du mot de passe
-    // On génère un "sel" pour rendre le hachage unique
+    // Étape future : vérifier si l'utilisateur existe déjà
+    // const userExists = await User.findByEmail(email);
+    // if (userExists) {
+    //   return res.status(400).json({ message: 'Cet utilisateur existe déjà' });
+    // }
+
     const salt = await bcrypt.genSalt(10);
-    // On hache le mot de passe avec le sel
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    console.log(`Email: ${email}`);
-    console.log(`Mot de passe original: ${password}`);
-    console.log(`Mot de passe haché: ${hashedPassword}`);
+    // On appelle notre Modèle pour créer l'utilisateur dans la DB !
+    const newUser = await User.create(email, hashedPassword);
 
-    // 4. Enregistrement dans la base de données (simulation pour l'instant)
-    // Plus tard, on appellera notre "Modèle" ici pour faire le vrai enregistrement.
-    // const newUser = await User.create({ email, password: hashedPassword });
-
+    // Si tout s'est bien passé, on envoie une réponse de succès
     res.status(201).json({ 
-      message: `Utilisateur ${email} prêt à être enregistré avec un mot de passe sécurisé.`,
+      message: `Utilisateur ${newUser.email} enregistré avec succès !`,
+      userId: newUser.id,
     });
 
   } catch (error) {
@@ -36,7 +34,6 @@ const registerUser = async (req, res) => {
   }
 };
 
-// On exporte notre fonction
 module.exports = {
   registerUser,
 };
