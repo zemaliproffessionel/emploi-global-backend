@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
+// On importe notre nouveau contrôleur
+const { registerUser } = require('../controllers/userController.js');
 
-// Pour l'instant, nous créons une route simple pour tester.
-// Plus tard, nous la connecterons au vrai contrôleur.
-router.post('/register', (req, res) => {
-  res.status(201).json({ message: "Route d'inscription fonctionnelle" });
-});
+// Au lieu d'une fonction simple, on dit à la route d'utiliser
+// la fonction registerUser de notre contrôleur.
+router.post('/register', registerUser);
 
 module.exports = router;
