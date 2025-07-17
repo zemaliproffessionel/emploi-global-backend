@@ -1,6 +1,7 @@
 // Importe le framework Express pour créer le serveur
 const express = require('express');
 const cors = require('cors');
+const userRoutes = require('./routes/userRoutes'); // <-- LIGNE AJOUTÉE
 
 // Crée l'application Express
 const app = express();
@@ -15,6 +16,9 @@ app.use(express.json());
 app.get('/', (req, res) => {
   res.send('Le serveur EmploiGlobal fonctionne !');
 });
+
+// Indique à l'application d'utiliser les routes des utilisateurs
+app.use('/api/users', userRoutes); // <-- LIGNE AJOUTÉE
 
 // Exporte l'application pour qu'elle puisse être utilisée par d'autres fichiers
 module.exports = app;
