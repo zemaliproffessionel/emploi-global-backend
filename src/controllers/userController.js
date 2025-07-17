@@ -1,34 +1,57 @@
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken'); // Pour créer le token de connexion
+const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-// --- Fonction d'inscription (inchangée) ---
+// --- Fonction d'inscription ---
 const registerUser = async (req, res) => {
-  // ... (le code existant reste ici, pas besoin de le copier à nouveau)
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Veuillez fournir un email et un mot de passe' });
+    }
+
+    // Note : nous ajouterons la vérification de l'existence de l'utilisateur plus tard
+    // const userExists = await User.findByEmail(email);
+    // if (userExists) {
+    //   return res.status(400).json({ message: 'Cet utilisateur existe déjà' });
+    // }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const newUser = await User.create(email, hashedPassword);
+
+    res.status(201).json({ 
+      message: `Utilisateur ${newUser.email} enregistré avec succès !`,
+      userId: newUser.id,
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Erreur du serveur lors de l'inscription." });
+  }
 };
 
-// --- NOUVELLE FONCTION DE CONNEXION ---
+// --- Fonction de connexion ---
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // 1. Trouver l'utilisateur dans la base de données
     const user = await User.findByEmail(email);
     if (!user) {
       return res.status(401).json({ message: 'Email ou mot de passe incorrect' });
     }
 
-    // 2. Comparer le mot de passe fourni avec celui qui est haché dans la DB
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
       return res.status(401).json({ message: 'Email ou mot de passe incorrect' });
     }
 
-    // 3. Si tout est bon, créer un token de connexion (JWT)
     const token = jwt.sign(
       { id: user.id, email: user.email },
-      process.env.JWT_SECRET || 'votre_secret_par_defaut', // Le secret doit être dans un fichier .env
-      { expiresIn: '1h' } // Le token expirera dans 1 heure
+      process.env.JWT_SECRET || 'votre_secret_par_defaut',
+      { expiresIn: '1h' }
     );
 
     res.status(200).json({
@@ -43,7 +66,7 @@ const loginUser = async (req, res) => {
   }
 };
 
-// On exporte les deux fonctions
+// On exporte les deux fonctions pour qu'elles soient utilisables
 module.exports = {
   registerUser,
   loginUser,
