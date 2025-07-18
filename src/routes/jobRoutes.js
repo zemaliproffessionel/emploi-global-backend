@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { getAllJobs } = require('../controllers/jobController');
+const { getAllJobs, getJobById } = require('../controllers/jobController');
 
-// Route pour récupérer toutes les offres (avec filtres possibles)
 router.get('/', getAllJobs);
+router.get('/:id', getJobById); // NOUVELLE ROUTE pour une offre spécifique
 
 module.exports = router;
