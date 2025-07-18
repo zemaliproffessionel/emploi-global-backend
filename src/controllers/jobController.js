@@ -10,7 +10,26 @@ const getAllJobs = async (req, res) => {
     res.status(500).json({ message: 'Erreur du serveur lors de la récupération des offres.' });
   }
 };
+const Job = require('../models/Job');
+
+// ... (la fonction getAllJobs reste ici) ...
+
+// NOUVELLE FONCTION
+const getJobById = async (req, res) => {
+  try {
+    const job = await Job.findById(req.params.id);
+    if (job) {
+      res.status(200).json(job);
+    } else {
+      res.status(404).json({ message: 'Offre non trouvée' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur du serveur.' });
+  }
+};
 
 module.exports = {
   getAllJobs,
+  getJobById, // On exporte la nouvelle fonction
 };
+
