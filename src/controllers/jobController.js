@@ -10,9 +10,6 @@ const getAllJobs = async (req, res) => {
     res.status(500).json({ message: 'Erreur du serveur lors de la récupération des offres.' });
   }
 };
-const Job = require('../models/Job');
-
-// ... (la fonction getAllJobs reste ici) ...
 
 // NOUVELLE FONCTION
 const getJobById = async (req, res) => {
