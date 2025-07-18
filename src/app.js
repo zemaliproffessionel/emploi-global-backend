@@ -14,5 +14,5 @@ app.get('/', (req, res) => {
 
 app.use('/api/users', userRoutes);
 app.use('/api/jobs', jobRoutes); // <-- LIGNE AJOUTÉE
-app.use('/api/users', userRoutes); app.use('/api/jobs', jobRoutes); app.use('/api/payments', paymentRoutes); // <-- LIGNE AJOUTÉE
+app.use('/api/payments', paymentRoutes); // <-- LIGNE AJOUTÉE
 module.exports = app;
