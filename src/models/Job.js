@@ -51,4 +51,18 @@ Job.getAll = async (filters = {}) => {
   }
 };
 
+// NOUVELLE FONCTION : trouver une offre par son ID
+Job.findById = async (id) => {
+  const query = 'SELECT * FROM jobs WHERE id = $1';
+  const values = [id];
+  
+  try {
+    const res = await db.query(query, values);
+    return res.rows[0]; // Retourne l'offre si elle est trouvée
+  } catch (err) {
+    console.error(err.stack);
+    throw err;
+  }
+};
+
 module.exports = Job;
