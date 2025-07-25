@@ -1,76 +1,63 @@
-const { chromium } = require('playwright');
+const playwright = require('playwright');
 
-const scrapeIndeed = async () => {
-  console.log('Lancement du scraping pour Indeed.fr...');
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
-
+async function scrapeIndeed() {
+  console.log('Lancement du scraping d\'Indeed...');
+  let browser = null;
   try {
-    const searchUrl = 'https://fr.indeed.com/jobs?q=d%C3%A9veloppeur&l=France&from=searchOnHP';
-    await page.goto(searchUrl, { waitUntil: 'networkidle' } ); // On attend que la page soit bien chargée
-    console.log(`Page ${searchUrl} chargée.`);
+    // Lancement du navigateur avec des options pour les environnements cloud
+    browser = await playwright.chromium.launch({
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+    const context = await browser.newContext({
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    });
+    const page = await context.newPage();
 
-    // Gérer la pop-up de consentement aux cookies si elle apparaît
-    const cookiePopupSelector = '#onetrust-accept-btn-handler';
-    if (await page.isVisible(cookiePopupSelector)) {
-      console.log('Pop-up de cookies détectée. Clic sur Accepter.');
-      await page.click(cookiePopupSelector);
-      // Attendre un peu que la pop-up disparaisse
-      await page.waitForTimeout(2000); 
-    }
+    console.log('Navigation vers la page d\'Indeed France...');
+    await page.goto('https://fr.indeed.com/jobs?q=d%C3%A9veloppeur&l=France', { waitUntil: 'domcontentloaded', timeout: 60000 });
+    console.log('Page chargée. Attente des sélecteurs...');
 
-    // On attend que la liste des offres soit bien présente sur la page
-    await page.waitForSelector('ul.jobsearch-ResultsList');
+    // Attendre que les cartes d'offres soient bien présentes
+    await page.waitForSelector('.job_seen_beacon', { timeout: 30000 });
+    console.log('Cartes d\'offres trouvées.');
 
-    // On récupère toutes les "cartes" d'offres d'emploi
-    const jobCards = await page.$$('div.job_seen_beacon');
-    console.log(`${jobCards.length} offres trouvées sur la page.`);
+    const jobs = await page.evaluate(() => {
+      const jobCards = Array.from(document.querySelectorAll('.job_seen_beacon'));
+      const jobData = [];
 
-    const scrapedJobs = [];
+      jobCards.slice(0, 15).forEach(card => {
+        const title = card.querySelector('h2.jobTitle a span')?.innerText;
+        const company = card.querySelector('span.companyName')?.innerText;
+        const location = card.querySelector('div.companyLocation')?.innerText;
+        const url = 'https://fr.indeed.com' + card.querySelector('h2.jobTitle a')?.getAttribute('href');
 
-    // On boucle sur chaque carte pour extraire les informations
-    for (const card of jobCards) {
-      let title = null, company = null, location = null, url = null;
-
-      // Utiliser .evaluate pour éviter les problèmes de contexte
-      const jobData = await card.evaluate(node => {
-        const titleEl = node.querySelector('h2.jobTitle > a');
-        const companyEl = node.querySelector('span[data-testid="company-name"]');
-        const locationEl = node.querySelector('div[data-testid="text-location"]');
-        
-        return {
-          title: titleEl ? titleEl.innerText : null,
-          company: companyEl ? companyEl.innerText : null,
-          location: locationEl ? locationEl.innerText : null,
-          url: titleEl ? titleEl.href : null,
-        };
+        if (title && company && location && url) {
+          jobData.push({
+            title,
+            company,
+            location,
+            country: 'France',
+            source: 'Indeed France',
+            url,
+            description: '', // La description sera récupérée plus tard
+            posted_at: new Date().toISOString().split('T')[0] // Date du jour
+          });
+        }
       });
+      return jobData;
+    });
 
-      // On ajoute les données extraites à notre tableau, si le titre existe
-      if (jobData.title) {
-        scrapedJobs.push({
-          title: jobData.title,
-          company: jobData.company,
-          location: jobData.location,
-          url: jobData.url,
-          source: 'Indeed France',
-          country: 'France'
-        });
-      }
-    }
-    
-    console.log(`${scrapedJobs.length} offres extraites avec succès.`);
-    return scrapedJobs;
+    console.log(`Scraping terminé. ${jobs.length} offres trouvées.`);
+    await browser.close();
+    return jobs;
 
   } catch (error) {
-    console.error('Une erreur est survenue durant le scraping :', error);
-    return [];
-  } finally {
-    await browser.close();
-    console.log('Navigateur fermé. Scraping terminé pour Indeed.fr.');
+    console.error('ERREUR MAJEURE PENDANT LE SCRAPING:', error);
+    if (browser) {
+      await browser.close();
+    }
+    return []; // Retourner un tableau vide en cas d'erreur
   }
-};
+}
 
-module.exports = {
-  scrapeIndeed,
-};
+module.exports = { scrapeIndeed };
