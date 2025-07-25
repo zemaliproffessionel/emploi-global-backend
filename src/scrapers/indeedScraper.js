@@ -1,62 +1,61 @@
-const playwright = require('playwright');
+const axios = require('axios');
+const cheerio = require('cheerio');
 
 async function scrapeIndeed() {
-  console.log('Lancement du scraping d\'Indeed...');
-  let browser = null;
+  console.log('[Scraper Léger] Lancement du scraping d\'Indeed...');
   try {
-    // Lancement du navigateur avec des options pour les environnements cloud
-    browser = await playwright.chromium.launch({
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    const url = 'https://fr.indeed.com/jobs?q=d%C3%A9veloppeur&l=France';
+        
+    // Utiliser axios pour télécharger le HTML de la page
+    const { data } = await axios.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
     });
-    const context = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    });
-    const page = await context.newPage();
+    console.log('[Scraper Léger] Page HTML téléchargée.');
 
-    console.log('Navigation vers la page d\'Indeed France...');
-    await page.goto('https://fr.indeed.com/jobs?q=d%C3%A9veloppeur&l=France', { waitUntil: 'domcontentloaded', timeout: 60000 });
-    console.log('Page chargée. Attente des sélecteurs...');
+    // Utiliser cheerio pour "lire" le HTML
+    const $ = cheerio.load(data);
+    const jobData = [];
 
-    // Attendre que les cartes d'offres soient bien présentes
-    await page.waitForSelector('.job_seen_beacon', { timeout: 30000 });
-    console.log('Cartes d\'offres trouvées.');
+    // La structure d'Indeed est complexe, on cible les scripts qui contiennent les données
+    const scripts = $('script[type="text/javascript"]');
+    let jobResults = null;
 
-    const jobs = await page.evaluate(() => {
-      const jobCards = Array.from(document.querySelectorAll('.job_seen_beacon'));
-      const jobData = [];
-
-      jobCards.slice(0, 15).forEach(card => {
-        const title = card.querySelector('h2.jobTitle a span')?.innerText;
-        const company = card.querySelector('span.companyName')?.innerText;
-        const location = card.querySelector('div.companyLocation')?.innerText;
-        const url = 'https://fr.indeed.com' + card.querySelector('h2.jobTitle a')?.getAttribute('href');
-
-        if (title && company && location && url) {
-          jobData.push({
-            title,
-            company,
-            location,
-            country: 'France',
-            source: 'Indeed France',
-            url,
-            description: '', // La description sera récupérée plus tard
-            posted_at: new Date().toISOString().split('T')[0] // Date du jour
-          });
+    scripts.each((i, el) => {
+      const scriptContent = $(el).html();
+      if (scriptContent && scriptContent.includes('jobsearch.mosaic.provider.jobcards.mosaic-provider-jobcards')) {
+        const match = scriptContent.match(/window.mosaic.providerData\["mosaic-provider-jobcards"\]\s*=\s*({.+});/);
+        if (match && match[1]) {
+          jobResults = JSON.parse(match[1]);
         }
-      });
-      return jobData;
+      }
     });
 
-    console.log(`Scraping terminé. ${jobs.length} offres trouvées.`);
-    await browser.close();
-    return jobs;
+    if (jobResults && jobResults.results) {
+        console.log(`[Scraper Léger] Données JSON trouvées. Traitement de ${jobResults.results.length} offres.`);
+        jobResults.results.forEach(job => {
+            jobData.push({
+                title: job.title,
+                company: job.company,
+                location: job.location,
+                country: 'France',
+                source: 'Indeed France',
+                url: `https://fr.indeed.com/voir-emploi?jk=${job.jobkey}`,
+                description: job.snippet?.replace(/<[^>]*>/g, '') || '', // Nettoyer le snippet
+                posted_at: new Date().toISOString().split('T')[0]
+            });
+        });
+    } else {
+        console.log('[Scraper Léger] Impossible de trouver les données JSON des offres.');
+    }
+
+    console.log(`[Scraper Léger] Scraping terminé. ${jobData.length} offres trouvées.`);
+    return jobData;
 
   } catch (error) {
-    console.error('ERREUR MAJEURE PENDANT LE SCRAPING:', error);
-    if (browser) {
-      await browser.close();
-    }
-    return []; // Retourner un tableau vide en cas d'erreur
+    console.error('[Scraper Léger] ERREUR MAJEURE:', error.message);
+    return [];
   }
 }
 
