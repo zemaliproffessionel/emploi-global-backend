@@ -1,68 +1,48 @@
 const db = require('../config/db');
 
-const Job = {};
+class Job {
+  static async create(jobData) {
+    const { title, company, location, country, description, source, url, posted_at } = jobData;
+    const query = `
+      INSERT INTO jobs (title, company, location, country, description, source, url, posted_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ON CONFLICT (url) DO NOTHING;
+    `;
+    const values = [title, company, location, country, description, source, url, posted_at];
+    await db.query(query, values);
+  }
 
-Job.createMany = async (jobs) => {
-  let newJobsCount = 0;
-  for (const job of jobs) {
-    const checkQuery = 'SELECT id FROM jobs WHERE url = $1';
-    const checkResult = await db.query(checkQuery, [job.url]);
+  static async getAll(params = {}) {
+    let baseQuery = 'SELECT * FROM jobs';
+    const conditions = [];
+    const values = [];
+    let paramIndex = 1;
 
-    if (checkResult.rows.length === 0 && job.title && job.url) {
-      const insertQuery = `
-        INSERT INTO jobs (title, company, location, url, source, country)
-        VALUES ($1, $2, $3, $4, $5, $6)
-      `;
-      const values = [job.title, job.company, job.location, job.url, job.source, job.country];
-      await db.query(insertQuery, values);
-      newJobsCount++;
+    if (params.country) {
+      conditions.push(`country = $${paramIndex++}`);
+      values.push(params.country);
     }
-  }
-  return newJobsCount;
-};
+    if (params.query) {
+      conditions.push(`(title ILIKE $${paramIndex++} OR description ILIKE $${paramIndex++})`);
+      values.push(`%${params.query}%`);
+      values.push(`%${params.query}%`);
+    }
 
-Job.getAll = async (filters = {}) => {
-  let query = 'SELECT id, title, company, location, country, created_at FROM jobs';
-  const queryParams = [];
-  let whereClauses = [];
+    if (conditions.length > 0) {
+      baseQuery += ' WHERE ' + conditions.join(' AND ');
+    }
 
-  if (filters.country) {
-    queryParams.push(filters.country);
-    whereClauses.push(`country ILIKE $${queryParams.length}`);
-  }
-  
-  if (filters.title) {
-    queryParams.push(`%${filters.title}%`);
-    whereClauses.push(`title ILIKE $${queryParams.length}`);
+    baseQuery += ' ORDER BY created_at DESC LIMIT 50';
+
+    const { rows } = await db.query(baseQuery, values);
+    return rows;
   }
 
-  if (whereClauses.length > 0) {
-    query += ' WHERE ' + whereClauses.join(' AND ');
+  static async findById(id) {
+    const query = 'SELECT * FROM jobs WHERE id = $1';
+    const { rows } = await db.query(query, [id]);
+    return rows[0];
   }
-  
-  query += ' ORDER BY created_at DESC LIMIT 50';
-
-  try {
-    const res = await db.query(query, queryParams);
-    return res.rows;
-  } catch (err) {
-    console.error(err.stack);
-    throw err;
-  }
-};
-
-// NOUVELLE FONCTION : trouver une offre par son ID
-Job.findById = async (id) => {
-  const query = 'SELECT * FROM jobs WHERE id = $1';
-  const values = [id];
-  
-  try {
-    const res = await db.query(query, values);
-    return res.rows[0]; // Retourne l'offre si elle est trouvée
-  } catch (err) {
-    console.error(err.stack);
-    throw err;
-  }
-};
+}
 
 module.exports = Job;
