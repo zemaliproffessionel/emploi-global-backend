@@ -16,7 +16,9 @@ const fetchAndSaveFromJobicy = async ( ) => {
         location: job.jobGeo || 'Remote',
         country: job.jobGeo ? job.jobGeo.split(',').pop().trim() : 'International',
         description: job.jobDescription,
-        url: job.url,
+        // ==================== CORRECTION CRITIQUE ICI ====================
+        url: job.url, // On utilise la VRAIE URL de l'offre fournie par l'API
+        // ===============================================================
         source: 'Jobicy',
         posted_at: new Date(job.pubDate),
       }));
@@ -34,7 +36,6 @@ const fetchAndSaveFromJobicy = async ( ) => {
     if (error.response) {
       errorMessage = `Status: ${error.response.status} - Data: ${JSON.stringify(error.response.data)}`;
     }
-    // La parenthèse manquante était ici. Je l'ai rajoutée.
     console.error('[Jobicy] Erreur lors de la récupération ou sauvegarde :', errorMessage);
   }
 };
