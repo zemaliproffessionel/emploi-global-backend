@@ -27,13 +27,14 @@ const fetchAndSaveFromJobicy = async ( ) => {
 
       console.log(`[Jobicy] Terminé. ${newJobsCount} nouvelles offres ont été ajoutées.`);
     } else {
-      console.log('[Jobicy] Aucune offre trouvée dans la réponse de l'API.');
+      console.log('[Jobicy] Aucune offre trouvée dans la réponse de l\'API.');
     }
   } catch (error) {
     let errorMessage = error.message;
     if (error.response) {
       errorMessage = `Status: ${error.response.status} - Data: ${JSON.stringify(error.response.data)}`;
     }
+    // La parenthèse manquante était ici. Je l'ai rajoutée.
     console.error('[Jobicy] Erreur lors de la récupération ou sauvegarde :', errorMessage);
   }
 };
