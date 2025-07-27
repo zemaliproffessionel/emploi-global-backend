@@ -4,30 +4,48 @@ const Job = require('../models/Job');
 
 const JOBICY_API_URL = 'https://jobicy.com/api/v2/remote-jobs?count=50';
 
-const fetchAndSaveFromJobicy = async ( ) => {
+// Notre liste de pays cibles
+const TARGET_COUNTRIES = ['france', 'canada', 'spain', 'germany', 'italy', 'portugal', 'belgium'];
+
+const fetchAndSaveFromJobicy = async () => {
   console.log('[Jobicy] Lancement de la tâche de récupération des offres...');
   try {
     const response = await axios.get(JOBICY_API_URL);
 
     if (response.data && response.data.jobs && response.data.jobs.length > 0) {
-      const jobsToSave = response.data.jobs.map(job => ({
-        title: job.jobTitle,
-        company: job.companyName,
-        location: job.jobGeo || 'Remote',
-        country: job.jobGeo ? job.jobGeo.split(',').pop().trim() : 'International',
-        description: job.jobDescription,
-        // ==================== CORRECTION CRITIQUE ICI ====================
-        url: job.url, // On utilise la VRAIE URL de l'offre fournie par l'API
-        // ===============================================================
-        source: 'Jobicy',
-        posted_at: new Date(job.pubDate),
-      }));
+          
+      // --- NOUVELLE ÉTAPE DE FILTRAGE ---
+      const allJobs = response.data.jobs;
+      console.log(`[Jobicy] ${allJobs.length} offres brutes récupérées.`);
 
-      console.log(`[Jobicy] ${jobsToSave.length} offres récupérées de l'API.`);
-      
-      const newJobsCount = await Job.createMany(jobsToSave);
+      const filteredJobs = allJobs.filter(job => {
+        if (!job.jobGeo) return false; // On ignore si la localisation est vide
+        const locationLowerCase = job.jobGeo.toLowerCase();
+        // On vérifie si la localisation contient un de nos pays cibles
+        return TARGET_COUNTRIES.some(country => locationLowerCase.includes(country));
+      });
 
-      console.log(`[Jobicy] Terminé. ${newJobsCount} nouvelles offres ont été ajoutées.`);
+      console.log(`[Jobicy] ${filteredJobs.length} offres correspondent à nos pays cibles.`);
+      // --- FIN DU FILTRAGE ---
+
+      if (filteredJobs.length > 0) {
+        const jobsToSave = filteredJobs.map(job => ({
+          title: job.jobTitle,
+          company: job.companyName,
+          location: job.jobGeo,
+          country: job.jobGeo, // On garde la localisation complète pour l'affichage
+          description: job.jobDescription,
+          url: job.url,
+          source: 'Jobicy',
+          posted_at: new Date(job.pubDate),
+        }));
+            
+        const newJobsCount = await Job.createMany(jobsToSave);
+        console.log(`[Jobicy] Terminé. ${newJobsCount} nouvelles offres ont été ajoutées.`);
+      } else {
+        console.log('[Jobicy] Aucune des offres récupérées ne correspond à nos pays cibles.');
+      }
+
     } else {
       console.log('[Jobicy] Aucune offre trouvée dans la réponse de l\'API.');
     }
@@ -41,13 +59,10 @@ const fetchAndSaveFromJobicy = async ( ) => {
 };
 
 const initScheduledJobs = () => {
-  cron.schedule('0 */6 * * *', fetchAndSaveFromJobicy, {
-    scheduled: true,
-    timezone: "UTC"
-  });
-  console.log('Tâche de récupération des offres planifiée pour s\'exécuter toutes les 6 heures.');
-  
-  console.log('Lancement initial de la récupération pour peupler la base de données...');
+  cron.schedule('0 */6 * * *', fetchAndSaveFromJobicy, { scheduled: true, timezone: "UTC" });
+  console.log('Tâche de récupération planifiée.');
+      
+  console.log('Lancement initial de la récupération...');
   setTimeout(fetchAndSaveFromJobicy, 5000); 
 };
 
