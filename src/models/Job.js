@@ -23,36 +23,34 @@ class Job {
     return newJobsCount;
   }
 
+  // ==================== NOUVELLE VERSION SIMPLIFIÉE ====================
   static async getAll(params = {}) {
     let baseQuery = 'SELECT * FROM jobs';
     const conditions = [];
     const values = [];
-    let paramIndex = 1;
 
-    // Filtre par pays (recherche si le nom du pays est CONTENU dans le champ)
-    if (params.country && params.country !== '') {
-      // ==================== CORRECTION CRITIQUE ICI ====================
-      conditions.push(`country ILIKE $${paramIndex++}`);
-      values.push(`%${params.country}%`); // On ajoute les '%' pour chercher n'importe où dans la chaîne
-      // ===============================================================
+    // Filtre par mot-clé (query)
+    if (params.query && params.query.trim() !== '') {
+      values.push(`%${params.query.trim()}%`);
+      conditions.push(`(title ILIKE $${values.length} OR description ILIKE $${values.length})`);
     }
-        
-    // Filtre par mot-clé (insensible à la casse)
-    if (params.query && params.query !== '') {
-      conditions.push(`(title ILIKE $${paramIndex++} OR description ILIKE $${paramIndex++})`);
-      values.push(`%${params.query}%`);
-      values.push(`%${params.query}%`);
+
+    // Filtre par pays
+    if (params.country && params.country.trim() !== '') {
+      values.push(`%${params.country.trim()}%`);
+      conditions.push(`country ILIKE $${values.length}`);
     }
 
     if (conditions.length > 0) {
       baseQuery += ' WHERE ' + conditions.join(' AND ');
     }
 
-    baseQuery += ' ORDER BY posted_at DESC LIMIT 50';
+    baseQuery += ' ORDER BY created_at DESC LIMIT 50';
 
     const { rows } = await db.query(baseQuery, values);
     return rows;
   }
+  // =====================================================================
 
   static async findById(id) {
     const query = 'SELECT * FROM jobs WHERE id = $1';
