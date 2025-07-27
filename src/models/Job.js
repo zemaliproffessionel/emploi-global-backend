@@ -23,17 +23,18 @@ class Job {
     return newJobsCount;
   }
 
-  // ==================== FONCTION CORRIGÉE ====================
   static async getAll(params = {}) {
     let baseQuery = 'SELECT * FROM jobs';
     const conditions = [];
     const values = [];
     let paramIndex = 1;
 
-    // Filtre par pays (insensible à la casse)
+    // Filtre par pays (recherche si le nom du pays est CONTENU dans le champ)
     if (params.country && params.country !== '') {
+      // ==================== CORRECTION CRITIQUE ICI ====================
       conditions.push(`country ILIKE $${paramIndex++}`);
-      values.push(params.country);
+      values.push(`%${params.country}%`); // On ajoute les '%' pour chercher n'importe où dans la chaîne
+      // ===============================================================
     }
         
     // Filtre par mot-clé (insensible à la casse)
@@ -52,7 +53,6 @@ class Job {
     const { rows } = await db.query(baseQuery, values);
     return rows;
   }
-  // ==========================================================
 
   static async findById(id) {
     const query = 'SELECT * FROM jobs WHERE id = $1';
