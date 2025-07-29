@@ -23,10 +23,7 @@ const fetchAndSaveFromJobicy = async () => {
 
       console.log(`[Jobicy] ${jobsToSave.length} offres récupérées de l'API.`);
           
-      // ==================== CORRECTION DÉFINITIVE ICI ====================
-      // On appelle la bonne fonction qui existe dans notre modèle Job.js
       const newJobsCount = await Job.insertMany(jobsToSave);
-      // =================================================================
 
       console.log(`[Jobicy] Terminé. ${newJobsCount} nouvelles offres ont été ajoutées.`);
     } else {
@@ -53,4 +50,3 @@ const initScheduledJobs = () => {
 };
 
 module.exports = { initScheduledJobs };
-```5.  **Validez** avec "Commit changes".
