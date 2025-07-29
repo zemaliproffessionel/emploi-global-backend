@@ -2,43 +2,46 @@ const db = require('../config/db');
 
 class Job {
   static async createMany(jobs) {
-    let newJobsCount = 0;
-    for (const job of jobs) {
-      const checkQuery = 'SELECT id FROM jobs WHERE url = $1';
-      const checkResult = await db.query(checkQuery, [job.url]);
-
-      if (checkResult.rows.length === 0) {
-        const insertQuery = `
-          INSERT INTO jobs (title, company, location, country, description, source, url, posted_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        `;
-        const values = [
-          job.title, job.company, job.location, job.country, 
-          job.description, job.source, job.url, job.posted_at
-        ];
-        await db.query(insertQuery, values);
-        newJobsCount++;
-      }
+    if (!jobs || jobs.length === 0) {
+      return 0;
     }
-    return newJobsCount;
+    const values = jobs.map(job => `(
+      '${job.title.replace(/'/g, "''")}',
+      '${job.company.replace(/'/g, "''")}',
+      '${job.location.replace(/'/g, "''")}',
+      '${job.url}',
+      '${job.source}',
+      '${job.country}'
+    )`).join(',');
+
+    const query = `
+      INSERT INTO jobs (title, company, location, url, source, country)
+      VALUES ${values}
+      ON CONFLICT (url) DO NOTHING;
+    `;
+    try {
+      const res = await db.query(query);
+      return res.rowCount;
+    } catch (error) {
+      console.error("Erreur lors de l'insertion multiple :", error);
+      return 0;
+    }
   }
 
-  // ==================== NOUVELLE VERSION SIMPLIFIÉE ====================
   static async getAll(params = {}) {
     let baseQuery = 'SELECT * FROM jobs';
     const conditions = [];
     const values = [];
+    let paramIndex = 1;
 
-    // Filtre par mot-clé (query)
-    if (params.query && params.query.trim() !== '') {
-      values.push(`%${params.query.trim()}%`);
-      conditions.push(`(title ILIKE $${values.length} OR description ILIKE $${values.length})`);
+    if (params.country) {
+      conditions.push(`country ILIKE $${paramIndex++}`);
+      values.push(`%${params.country}%`);
     }
-
-    // Filtre par pays
-    if (params.country && params.country.trim() !== '') {
-      values.push(`%${params.country.trim()}%`);
-      conditions.push(`country ILIKE $${values.length}`);
+    if (params.query) {
+      conditions.push(`(title ILIKE $${paramIndex++} OR description ILIKE $${paramIndex++})`);
+      values.push(`%${params.query}%`);
+      values.push(`%${params.query}%`);
     }
 
     if (conditions.length > 0) {
@@ -47,10 +50,20 @@ class Job {
 
     baseQuery += ' ORDER BY created_at DESC LIMIT 50';
 
-    const { rows } = await db.query(baseQuery, values);
-    return rows;
+    // Log de débogage crucial
+    console.log('--- REQUÊTE SQL EXÉCUTÉE ---');
+    console.log('Query:', baseQuery);
+    console.log('Values:', values);
+    console.log('-----------------------------');
+
+    try {
+      const { rows } = await db.query(baseQuery, values);
+      return rows;
+    } catch (error) {
+      console.error("Erreur lors de l'exécution de la requête getAll :", error);
+      return [];
+    }
   }
-  // =====================================================================
 
   static async findById(id) {
     const query = 'SELECT * FROM jobs WHERE id = $1';
