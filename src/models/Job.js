@@ -1,32 +1,44 @@
 const db = require('../config/db');
 
 class Job {
-  static async createMany(jobs) {
+  // ==================== NOUVELLE FONCTION AJOUTÉE ====================
+  static async insertMany(jobs) {
     if (!jobs || jobs.length === 0) {
       return 0;
     }
-    const values = jobs.map(job => `(
-      '${job.title.replace(/'/g, "''")}',
-      '${job.company.replace(/'/g, "''")}',
-      '${job.location.replace(/'/g, "''")}',
-      '${job.url}',
-      '${job.source}',
-      '${job.country}'
-    )`).join(',');
+    // Prépare les données pour une insertion en masse sécurisée
+    const values = jobs.flatMap(job => [
+      job.title,
+      job.company,
+      job.location,
+      job.url,
+      job.source,
+      job.country,
+      job.description,
+      job.posted_at
+    ]);
+        
+    // Crée une chaîne de placeholders ($1, $2, $3), ($4, $5, $6), etc.
+    const placeholders = jobs.map((_, index) => {
+      const i = index * 8;
+      return `($${i + 1}, $${i + 2}, $${i + 3}, $${i + 4}, $${i + 5}, $${i + 6}, $${i + 7}, $${i + 8})`;
+    }).join(',');
 
     const query = `
-      INSERT INTO jobs (title, company, location, url, source, country)
-      VALUES ${values}
+      INSERT INTO jobs (title, company, location, url, source, country, description, posted_at)
+      VALUES ${placeholders}
       ON CONFLICT (url) DO NOTHING;
     `;
+
     try {
-      const res = await db.query(query);
-      return res.rowCount;
+      const res = await db.query(query, values);
+      return res.rowCount; // Retourne le nombre de lignes réellement insérées
     } catch (error) {
       console.error("Erreur lors de l'insertion multiple :", error);
       return 0;
     }
   }
+  // ===================================================================
 
   static async getAll(params = {}) {
     let baseQuery = 'SELECT * FROM jobs';
@@ -39,8 +51,7 @@ class Job {
       values.push(`%${params.country}%`);
     }
     if (params.query) {
-      conditions.push(`(title ILIKE $${paramIndex++} OR description ILIKE $${paramIndex++})`);
-      values.push(`%${params.query}%`);
+      conditions.push(`(title ILIKE $${paramIndex++})`);
       values.push(`%${params.query}%`);
     }
 
@@ -49,12 +60,6 @@ class Job {
     }
 
     baseQuery += ' ORDER BY created_at DESC LIMIT 50';
-
-    // Log de débogage crucial
-    console.log('--- REQUÊTE SQL EXÉCUTÉE ---');
-    console.log('Query:', baseQuery);
-    console.log('Values:', values);
-    console.log('-----------------------------');
 
     try {
       const { rows } = await db.query(baseQuery, values);
