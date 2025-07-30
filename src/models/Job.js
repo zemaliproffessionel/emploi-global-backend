@@ -1,52 +1,30 @@
 const db = require('../config/db');
 
 class Job {
-  // ==================== NOUVELLE FONCTION AJOUTÉE ====================
   static async insertMany(jobs) {
-    if (!jobs || jobs.length === 0) {
-      return 0;
-    }
-    // Prépare les données pour une insertion en masse sécurisée
+    if (!jobs || jobs.length === 0) return 0;
     const values = jobs.flatMap(job => [
-      job.title,
-      job.company,
-      job.location,
-      job.url,
-      job.source,
-      job.country,
-      job.description,
-      job.posted_at
+      job.title, job.company, job.location, job.url, job.source, job.country, job.description, job.posted_at
     ]);
-        
-    // Crée une chaîne de placeholders ($1, $2, $3), ($4, $5, $6), etc.
-    const placeholders = jobs.map((_, index) => {
-      const i = index * 8;
-      return `($${i + 1}, $${i + 2}, $${i + 3}, $${i + 4}, $${i + 5}, $${i + 6}, $${i + 7}, $${i + 8})`;
-    }).join(',');
-
-    const query = `
-      INSERT INTO jobs (title, company, location, url, source, country, description, posted_at)
-      VALUES ${placeholders}
-      ON CONFLICT (url) DO NOTHING;
-    `;
-
+    const placeholders = jobs.map((_, i) => `($${i*8+1}, $${i*8+2}, $${i*8+3}, $${i*8+4}, $${i*8+5}, $${i*8+6}, $${i*8+7}, $${i*8+8})`).join(',');
+    const query = `INSERT INTO jobs (title, company, location, url, source, country, description, posted_at) VALUES ${placeholders} ON CONFLICT (url) DO NOTHING;`;
     try {
       const res = await db.query(query, values);
-      return res.rowCount; // Retourne le nombre de lignes réellement insérées
+      return res.rowCount;
     } catch (error) {
       console.error("Erreur lors de l'insertion multiple :", error);
       return 0;
     }
   }
-  // ===================================================================
 
+  // ==================== CORRECTION DÉFINITIVE DE LA LOGIQUE DE RECHERCHE ====================
   static async getAll(params = {}) {
-    let baseQuery = 'SELECT * FROM jobs';
+    let baseQuery = 'SELECT id, title, company, location, country, url, created_at FROM jobs';
     const conditions = [];
     const values = [];
     let paramIndex = 1;
 
-    if (params.country) {
+    if (params.country && params.country !== 'Tous les pays') {
       conditions.push(`country ILIKE $${paramIndex++}`);
       values.push(`%${params.country}%`);
     }
@@ -60,7 +38,7 @@ class Job {
     }
 
     baseQuery += ' ORDER BY created_at DESC LIMIT 50';
-
+        
     try {
       const { rows } = await db.query(baseQuery, values);
       return rows;
@@ -69,6 +47,7 @@ class Job {
       return [];
     }
   }
+  // ========================================================================================
 
   static async findById(id) {
     const query = 'SELECT * FROM jobs WHERE id = $1';
