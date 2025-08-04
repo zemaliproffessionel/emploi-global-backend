@@ -1,9 +1,9 @@
-const db = require('../config/db');
+const db = require("../config/db");
 
 class Job {
   static async getAll(params = {}) {
-    console.log('[Backend Job.js] Réception de la requête avec les filtres :', params);
-    let baseQuery = 'SELECT id, title, company, location, country, url, created_at FROM jobs';
+    console.log("[Backend Job.js] Réception de la requête avec les filtres :", params);
+    let baseQuery = "SELECT id, title, company, location, country, url, created_at FROM jobs";
     const values = [];
     const conditions = [];
     let paramIndex = 1;
@@ -18,12 +18,12 @@ class Job {
     }
 
     if (conditions.length > 0) {
-      baseQuery += ' WHERE ' + conditions.join(' AND ');
+      baseQuery += " WHERE " + conditions.join(" AND ");
     }
-    baseQuery += ' ORDER BY created_at DESC LIMIT 50';
+    baseQuery += " ORDER BY created_at DESC LIMIT 50";
 
-    console.log('[Backend Job.js] Exécution de la requête SQL :', baseQuery);
-    console.log('[Backend Job.js] Avec les valeurs :', values);
+    console.log("[Backend Job.js] Exécution de la requête SQL :", baseQuery);
+    console.log("[Backend Job.js] Avec les valeurs :", values);
 
     try {
       const { rows } = await db.query(baseQuery, values);
@@ -36,12 +36,12 @@ class Job {
   }
 
   static async findById(id) {
-    console.log('[Backend Job.js] Recherche de l\'offre avec l\'ID :', id);
-    const query = 'SELECT * FROM jobs WHERE id = $1';
+    console.log("[Backend Job.js] Recherche de l'offre avec l'ID :", id);
+    const query = "SELECT * FROM jobs WHERE id = $1";
     
     try {
       const { rows } = await db.query(query, [id]);
-      console.log(`[Backend Job.js] Résultat de la recherche :`, rows.length > 0 ? 'Offre trouvée' : 'Aucune offre trouvée');
+      console.log(`[Backend Job.js] Résultat de la recherche :`, rows.length > 0 ? "Offre trouvée" : "Aucune offre trouvée");
       return rows.length > 0 ? rows[0] : null;
     } catch (error) {
       console.error("[Backend Job.js] ERREUR LORS DE LA RECHERCHE PAR ID :", error);
@@ -49,11 +49,24 @@ class Job {
     }
   }
 
+  static async getUniqueCountries() {
+    console.log("[Backend Job.js] Récupération des pays uniques...");
+    const query = "SELECT DISTINCT country FROM jobs WHERE country IS NOT NULL AND country != '' ORDER BY country ASC";
+    try {
+      const { rows } = await db.query(query);
+      console.log(`[Backend Job.js] ${rows.length} pays uniques trouvés.`);
+      return rows.map(row => row.country);
+    } catch (error) {
+      console.error("[Backend Job.js] ERREUR LORS DE LA RÉCUPÉRATION DES PAYS UNIQUES :", error);
+      throw error;
+    }
+  }
+
   static async insertMany(jobs) {
-    console.log('[Backend Job.js] Insertion de', jobs.length, 'offres dans la base de données');
+    console.log("[Backend Job.js] Insertion de", jobs.length, "offres dans la base de données");
     
     if (jobs.length === 0) {
-      console.log('[Backend Job.js] Aucune offre à insérer');
+      console.log("[Backend Job.js] Aucune offre à insérer");
       return;
     }
 
@@ -75,7 +88,7 @@ class Job {
           job.created_at || new Date()
         ]);
       }
-      console.log('[Backend Job.js] Insertion terminée avec succès');
+      console.log("[Backend Job.js] Insertion terminée avec succès");
     } catch (error) {
       console.error("[Backend Job.js] ERREUR LORS DE L'INSERTION :", error);
       throw error;
