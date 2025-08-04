@@ -34,7 +34,53 @@ class Job {
       return [];
     }
   }
-  // Les autres fonctions (insertMany, findById) restent inchangées
+
+  static async findById(id) {
+    console.log('[Backend Job.js] Recherche de l\'offre avec l\'ID :', id);
+    const query = 'SELECT * FROM jobs WHERE id = $1';
+    
+    try {
+      const { rows } = await db.query(query, [id]);
+      console.log(`[Backend Job.js] Résultat de la recherche :`, rows.length > 0 ? 'Offre trouvée' : 'Aucune offre trouvée');
+      return rows.length > 0 ? rows[0] : null;
+    } catch (error) {
+      console.error("[Backend Job.js] ERREUR LORS DE LA RECHERCHE PAR ID :", error);
+      throw error;
+    }
+  }
+
+  static async insertMany(jobs) {
+    console.log('[Backend Job.js] Insertion de', jobs.length, 'offres dans la base de données');
+    
+    if (jobs.length === 0) {
+      console.log('[Backend Job.js] Aucune offre à insérer');
+      return;
+    }
+
+    const query = `
+      INSERT INTO jobs (id, title, company, location, country, url, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      ON CONFLICT (id) DO NOTHING
+    `;
+
+    try {
+      for (const job of jobs) {
+        await db.query(query, [
+          job.id,
+          job.title,
+          job.company,
+          job.location,
+          job.country,
+          job.url,
+          job.created_at || new Date()
+        ]);
+      }
+      console.log('[Backend Job.js] Insertion terminée avec succès');
+    } catch (error) {
+      console.error("[Backend Job.js] ERREUR LORS DE L'INSERTION :", error);
+      throw error;
+    }
+  }
 }
 
 module.exports = Job;
